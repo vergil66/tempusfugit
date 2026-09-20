@@ -44,23 +44,23 @@ The build is in `dist/`. Preview serves it locally. The timing tests cover pause
 4. Set Build Command to `npm run build` and Output Directory to `dist`. No environment variables are needed.
 5. Deploy and open the supplied URL. Further commits redeploy the app.
 
-This beta has not been published to a hosting account. Deployment remains in your control.
+Vercel runs the timing tests before building each deployment.
 
 Official references: [Vite guide](https://vite.dev/guide/), [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite).
 
 ## Future Threshold boundary
 
-`src/model.ts` defines the versioned `ClassPlan` and `Movement` contracts and `validatePlan(unknown)`. A future adapter should map Threshold data into that contract, validate it, then pass the plan into the UI initialization in `src/main.ts`. Optional `source.classId` and `source.lessonId` allow provenance without coupling clocks to a service. IDs and movement colors remain stable when editing. Timing is a separate pure state model, with deterministic tests; presentation does not depend on network calls.
+`model.ts` defines the versioned `ClassPlan` and `Movement` contracts and `validatePlan(unknown)`. A future adapter should map Threshold data into that contract, validate it, then pass the plan into the UI initialization in `main.ts`. Optional `source.classId` and `source.lessonId` allow provenance without coupling clocks to a service. IDs and movement colors remain stable when editing. Timing is a separate pure state model, with deterministic tests; presentation does not depend on network calls.
 
 There is no API, authentication, cross-device sync, lesson write-back, or implemented integration. Do not put credentials in this browser bundle. If an integration later needs secrets, add an authenticated server boundary.
 
 ## Files
 
-- `src/model.ts`: plan validation and independent clock state transitions.
-- `src/main.ts`: UI, local settings, teacher/student views.
-- `src/style.css`: responsive and projection styling; system fonts, no remote assets.
-- `tests/model.test.ts`: deterministic timer tests.
+- `model.ts`: plan validation and independent clock state transitions.
+- `main.ts`: UI, local settings, teacher/student views.
+- `style.css`: responsive and projection styling; system fonts, no remote assets.
+- `model.test.ts`: deterministic timer tests.
 
 ### Repeat browser verification
 
-With Google Chrome installed and `npm run dev` running on port 5173, run `node tests/browser.mjs`. It checks real UI timing, overtime, editing, saved settings, view switching, reset, completion, and horizontal overflow at 375, 768, and 1440 pixels. Screenshots are written to `test-results/`. All checks passed during beta verification.
+With Google Chrome installed and `npm run dev` running on port 5173, run `node browser.mjs`. It checks real UI timing, overtime, editing, saved settings, view switching, reset, completion, and horizontal overflow at 375, 768, and 1440 pixels. Screenshots are written to `test-results/`. All checks passed during beta verification.

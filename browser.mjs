@@ -1,0 +1,26 @@
+import { chromium } from '@playwright/test';
+import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
+mkdirSync('test-results', { recursive: true });
+const browser = await chromium.launch({channel:'chrome',headless:true});
+const page = await browser.newPage({viewport:{width:1440,height:1000}});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.clock.install({time:new Date('2026-09-20T12:00:00Z')});
+await page.goto('http://127.0.0.1:5173');
+assert.equal(await page.locator('#countdown').innerText(),'03:00');
+await page.click('#start');await page.clock.fastForward(181000);
+assert.equal(await page.locator('#countdown').innerText(),'00:00');
+assert.equal(await page.locator('#movement-title').innerText(),'Latin Phrase Interaction');
+assert.match(await page.locator('#clock-caption').innerText(),/WRAP UP/);
+await page.click('#start');const total=await page.locator('#total-countdown').innerText();await page.clock.fastForward(10000);assert.equal(await page.locator('#total-countdown').innerText(),total);
+await page.click('#next');assert.equal(await page.locator('#countdown').innerText(),'10:00');assert.equal(await page.locator('#total-countdown').innerText(),total);
+await page.click('#edit');await page.fill('#name-input','AP Language');await page.fill('#period-input','55');await page.locator('[name="minutes-0"]').fill('4');await page.getByRole('button',{name:'Save rhythm'}).click();assert.equal(await page.locator('#class-name').innerText(),'AP Language');assert.equal(await page.locator('#countdown').innerText(),'04:00');assert.match(await page.locator('#allocation').innerText(),/4 min unallocated/);
+await page.reload();assert.equal(await page.locator('#class-name').innerText(),'AP Language');
+await page.click('#view');assert.equal(await page.locator('#edit').isVisible(),false);
+await page.screenshot({path:'test-results/student.png',fullPage:true});
+for(const width of [375,768,1440]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`overflow at ${width}`);}
+await page.screenshot({path:'test-results/mobile.png',fullPage:true});
+await page.click('#view');await page.click('#reset');await page.click('#confirm-reset');assert.equal(await page.locator('#countdown').innerText(),'04:00');
+for(let i=0;i<5;i++)await page.click('#next');assert.equal(await page.locator('#start').isDisabled(),true);
+assert.deepEqual(errors,[]);console.log('Browser checks passed: overtime, manual next, pause, editing, persistence, student view, responsive widths, reset, completion; no page errors.');
+await browser.close();

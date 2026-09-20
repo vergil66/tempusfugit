@@ -1,0 +1,12 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { defaultPlan, validatePlan, newSession, times, toggle, advance, clock } from './model.ts';
+test('default rhythm totals fifty minutes',()=>assert.equal(defaultPlan.movements.reduce((a,m)=>a+m.minutes,0),50));
+test('pause freezes both clocks; resume excludes paused time',()=>{let s=toggle(newSession(),1000);s=toggle(s,61000);assert.deepEqual(times(s,90000),{total:60000,movement:60000});s=toggle(s,100000);assert.deepEqual(times(s,110000),{total:70000,movement:70000});});
+test('elapsed time catches up after throttling and does not advance automatically',()=>{const s=toggle(newSession(),1000);assert.equal(times(s,301000).movement,300000);assert.equal(s.index,0);assert.equal(clock(180000-times(s,301000).movement),'00:00');});
+test('manual advance resets only movement time, preserving running state',()=>{const s=advance(toggle(newSession(),1000),5,31000);assert.equal(s.index,1);assert.deepEqual(times(s,41000),{total:40000,movement:10000});});
+test('advance while paused stays paused',()=>{const s=advance(newSession(),5,3000);assert.equal(s.startedAt,null);assert.equal(s.index,1);});
+test('finish freezes clocks and start cannot restart completed session',()=>{let s=toggle(newSession(),0);for(let i=0;i<5;i++)s=advance(s,5,(i+1)*1000);assert.equal(s.complete,true);assert.equal(s.index,4);assert.deepEqual(times(s,100000),{total:5000,movement:1000});assert.deepEqual(toggle(s,100000),s);});
+test('invalid integration or saved data rejected',()=>{for(const minutes of [0,-1,NaN,1.5,241])assert.throws(()=>validatePlan({...defaultPlan,periodMinutes:minutes}));assert.throws(()=>validatePlan({...defaultPlan,movements:[defaultPlan.movements[0],defaultPlan.movements[0]]}));assert.throws(()=>validatePlan(null));});
+test('validation clones input and permits planned time mismatch',()=>{const p=validatePlan({...defaultPlan,periodMinutes:45});p.movements[0].minutes=4;assert.equal(defaultPlan.movements[0].minutes,3);});
+test('clock rounds up, clamps, and supports long periods',()=>{assert.equal(clock(1),'00:01');assert.equal(clock(-1),'00:00');assert.equal(clock(7200000),'120:00');});
