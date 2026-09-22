@@ -51,6 +51,7 @@ function allocation(period:number, sum:number) { return sum===period ? 'Every mi
 function renderClock() {
   const m = plan.movements[session.index], next = plan.movements[session.index+1], t = times(session, Date.now());
   const remaining = m.minutes*60000-t.movement, totalRemaining = plan.periodMinutes*60000-t.total;
+  checkChime(remaining);
   document.documentElement.style.setProperty('--movement',m.color);
   document.documentElement.style.setProperty('--next-color', !session.complete && next ? next.color : '#263d33');
   $('movement-number').textContent = `MOVEMENT ${String(session.index+1).padStart(2,'0')} / ${String(plan.movements.length).padStart(2,'0')}`;
@@ -121,4 +122,121 @@ $('plan-form').onsubmit=(e)=>{e.preventDefault();const data=new FormData($<HTMLF
 $('reset').onclick=()=>{$<HTMLDialogElement>('reset-dialog').showModal();};
 $('cancel-reset').onclick=()=>$<HTMLDialogElement>('reset-dialog').close();
 $('confirm-reset').onclick=()=>{session=newSession();renderClock();$<HTMLDialogElement>('reset-dialog').close();};
+// Optional movement-ending chime.
+let chimeEnabled = false;
+let audioContext: AudioContext | null = null;
+let chimeIndex = -1;
+let chimePlayed = false;
+
+try {
+  chimeEnabled = localStorage.getItem('tempusfugit-chime') === 'on';
+} catch {
+  // The chime still works if browser storage is unavailable.
+}
+
+const chimeButton = document.createElement('button');
+chimeButton.type = 'button';
+chimeButton.className = 'teacher-only';
+document.querySelector('.view-tools')!.prepend(chimeButton);
+
+function updateChimeButton() {
+  chimeButton.textContent = chimeEnabled ? '♪ Chime on' : '♪ Chime off';
+  chimeButton.setAttribute('aria-pressed', String(chimeEnabled));
+  chimeButton.title = 'Play a gentle sound when a movement ends';
+}
+
+async function prepareAudio(): Promise<boolean> {
+  try {
+    audioContext ??= new AudioContext();
+    
+    if (audioContext.state !== 'running') {
+      await audioContext.resume();
+    }
+    
+    return audioContext.state === 'running';
+  } catch {
+    return false;
+  }
+}
+
+function playChime() {
+  if (!audioContext || audioContext.state !== 'running') return;
+  
+  const now = audioContext.currentTime;
+  
+  // Two soft sine-wave notes with a gradual fade.
+  for (const [offset, frequency] of [[0, 660], [0.3, 880]]) {
+    const oscillator = audioContext.createOscillator();
+    const volume = audioContext.createGain();
+    const start = now + offset;
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.value = frequency;
+    
+    volume.gain.setValueAtTime(0, start);
+    volume.gain.linearRampToValueAtTime(0.12, start + 0.03);
+    volume.gain.exponentialRampToValueAtTime(0.001, start + 0.9);
+    
+    oscillator.connect(volume);
+    volume.connect(audioContext.destination);
+    
+    oscillator.start(start);
+    oscillator.stop(start + 1);
+    
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      volume.disconnect();
+    };
+  }
+}
+
+function checkChime(remaining: number) {
+  if (chimeIndex !== session.index || remaining > 0) {
+    chimeIndex = session.index;
+    chimePlayed = false;
+  }
+  
+  if (remaining <= 0 && !chimePlayed && !session.complete) {
+    chimePlayed = true;
+    
+    if (chimeEnabled) {
+      playChime();
+    }
+  }
+}
+
+chimeButton.onclick = async () => {
+  if (chimeEnabled) {
+    chimeEnabled = false;
+  } else {
+    const ready = await prepareAudio();
+    
+    if (!ready) {
+      chimeButton.textContent = 'Sound unavailable — try again';
+      return;
+    }
+    
+    chimeEnabled = true;
+    playChime(); // Preview the sound when enabled.
+  }
+  
+  try {
+    localStorage.setItem(
+      'tempusfugit-chime',
+      chimeEnabled ? 'on' : 'off'
+    );
+  } catch {
+    // Keep the current setting for this tab.
+  }
+  
+  updateChimeButton();
+};
+
+// Browsers require a click to enable audio after loading a page.
+// This runs alongside the existing Start/Pause handler.
+$('start').addEventListener('click', () => {
+  if (chimeEnabled) void prepareAudio();
+});
+
+updateChimeButton();
 renderPlan();setInterval(renderClock,200);
