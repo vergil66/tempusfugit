@@ -31,7 +31,7 @@ $('app').innerHTML = `
 <div class="workspace"><section class="clock-panel" aria-label="Current movement"><div class="clock-top"><span id="movement-number" class="eyebrow"></span><span id="state" class="status" role="status"></span></div><h2 id="movement-title"></h2><p id="description"></p><div id="countdown" class="countdown" role="timer" aria-label="Movement time remaining"></div><p id="clock-caption" class="clock-caption"></p><div class="movement-track"><div id="movement-progress"></div></div><div class="up-next"><span class="eyebrow">UP NEXT</span><strong id="next-title"></strong><span id="next-duration"></span></div></section>
 <aside class="period-panel"><div class="period-top"><p class="eyebrow">CLASS TIME LEFT</p><span id="period-length"></span></div><div id="total-countdown" class="total-countdown" role="timer" aria-label="Class time remaining"></div><p id="period-caption">A little structure. Room to learn.</p><div class="period-track"><div id="period-progress"></div></div><div class="rhythm-title"><h2>Today’s rhythm</h2><span id="planned-total"></span></div><ol id="rhythm"></ol><p id="allocation"></p></aside></div>
 <section class="controls" aria-label="Timer controls"><div class="control-buttons"><button id="start" class="primary">▶ Start class</button><button id="next">Next movement →</button><button id="reset" class="quiet teacher-only">↺ Reset</button></div><p id="control-note">You set the pace. Movements advance only when you say so.</p></section>
-<footer><span>ONE CLASS. FIVE MOMENTS TO MAKE IT COUNT.</span><span id="save-note">Settings saved on this browser</span></footer></main>
+<footer><span>YOUR CLASS. YOUR RHYTHM.</span><span id="save-note">Settings saved on this browser</span></footer></main>
 <dialog id="editor"><form id="plan-form"><div class="dialog-heading"><div><p class="eyebrow">MAKE IT YOURS</p><h2>Class & rhythm</h2></div><button type="button" id="close-editor" aria-label="Close editor">✕</button></div><p>Saving starts a fresh class. Use a new class name to save another preset; an existing name updates that preset.</p><div class="form-top"><label>Class name<input id="name-input" name="className" maxlength="100" required></label><label>Period (minutes)<input id="period-input" name="period" type="number" min="1" max="240" step="1" required></label></div><div id="movement-fields"></div><p id="draft-allocation" role="status"></p><p id="form-error" role="alert"></p><div class="dialog-actions"><button type="button" id="cancel-editor">Cancel</button><button class="primary" type="submit">Save class preset</button></div></form></dialog>
 <dialog id="reset-dialog"><h2>Start this class again?</h2><p>Both clocks return to the beginning. Your class name and rhythm stay saved.</p><div class="dialog-actions"><button id="cancel-reset">Keep class</button><button id="confirm-reset" class="primary">Reset clocks</button></div></dialog>`;
 function renderPlan() {
@@ -77,13 +77,182 @@ $('next').onclick=()=>{session=advance(session,plan.movements.length,Date.now())
 $('view').onclick=()=>{student=!student;document.body.classList.toggle('student',student);$('view').textContent=student?'Teacher View ↙':'Student View ↗';};
 $('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{$('control-note').textContent='Full screen is unavailable here. Use your browser’s full-screen command.';}};
 document.addEventListener('fullscreenchange',()=>{$('fullscreen').innerHTML=document.fullscreenElement?'⛶ <span>Exit full screen</span>':'⛶ <span>Full screen</span>';});
-const editor=$<HTMLDialogElement>('editor');
+const editor = $<HTMLDialogElement>('editor');
+let draftMovements: ClassPlan['movements'] = [];
+
+const phaseColors = [
+  '#755027',
+  '#32617f',
+  '#34634c',
+  '#745589',
+  '#995344',
+  '#286b70',
+  '#735b76'
+];
+
+function captureDraft() {
+  const data = new FormData($<HTMLFormElement>('plan-form'));
+  
+  draftMovements = draftMovements.map((movement, index) => ({
+    ...movement,
+    title: String(data.get(`title-${index}`) ?? ''),
+    description: String(data.get(`description-${index}`) ?? ''),
+    minutes: Number(data.get(`minutes-${index}`))
+  }));
+}
+
+function renderMovementFields() {
+  $('movement-fields').innerHTML = draftMovements.map((movement, index) => `
+    <fieldset>
+      <legend>
+        <span style="color:${movement.color}">●</span>
+        Phase ${index + 1}
+      </legend>
+
+      <div class="form-top">
+        <label>
+          Phase name
+          <input
+            name="title-${index}"
+            value="${escape(movement.title)}"
+            maxlength="100"
+            required
+          >
+        </label>
+
+        <label>
+          Minutes
+          <input
+            name="minutes-${index}"
+            type="number"
+            min="1"
+            max="240"
+            step="1"
+            value="${movement.minutes || ''}"
+            required
+          >
+        </label>
+      </div>
+
+      <label>
+        Student instruction
+        <input
+          name="description-${index}"
+          value="${escape(movement.description)}"
+          maxlength="300"
+        >
+      </label>
+
+      <div class="phase-actions">
+        <button
+          type="button"
+          data-phase-action="up"
+          data-index="${index}"
+          aria-label="Move phase ${index + 1} up"
+          ${index === 0 ? 'disabled' : ''}
+        >↑ Move up</button>
+
+        <button
+          type="button"
+          data-phase-action="down"
+          data-index="${index}"
+          aria-label="Move phase ${index + 1} down"
+          ${index === draftMovements.length - 1 ? 'disabled' : ''}
+        >↓ Move down</button>
+
+        <button
+          type="button"
+          data-phase-action="remove"
+          data-index="${index}"
+          aria-label="Remove phase ${index + 1}"
+          ${draftMovements.length === 1 ? 'disabled' : ''}
+        >Remove</button>
+      </div>
+    </fieldset>
+  `).join('') + `
+    <button
+      type="button"
+      data-phase-action="add"
+      ${draftMovements.length >= 20 ? 'disabled' : ''}
+    >＋ Add phase</button>
+  `;
+  
+  draftAllocation();
+}
+
+$('movement-fields').addEventListener('click', event => {
+  const target = event.target as HTMLElement;
+  const button = target.closest<HTMLButtonElement>(
+    'button[data-phase-action]'
+  );
+  
+  if (!button || button.disabled) return;
+  
+  captureDraft();
+  
+  const action = button.dataset.phaseAction;
+  const index = Number(button.dataset.index);
+  let focusIndex = index;
+  
+  if (action === 'add' && draftMovements.length < 20) {
+    const usedColors = new Set(draftMovements.map(item => item.color));
+    const color =
+      phaseColors.find(candidate => !usedColors.has(candidate)) ??
+      phaseColors[draftMovements.length % phaseColors.length];
+    
+    draftMovements.push({
+      id: crypto.randomUUID(),
+      title: 'New phase',
+      description: '',
+      minutes: 5,
+      color
+    });
+    
+    focusIndex = draftMovements.length - 1;
+  } else if (action === 'remove' && draftMovements.length > 1) {
+    draftMovements.splice(index, 1);
+    focusIndex = Math.min(index, draftMovements.length - 1);
+  } else if (action === 'up' && index > 0) {
+    [draftMovements[index - 1], draftMovements[index]] =
+      [draftMovements[index], draftMovements[index - 1]];
+    
+    focusIndex = index - 1;
+  } else if (
+    action === 'down' &&
+    index < draftMovements.length - 1
+  ) {
+    [draftMovements[index], draftMovements[index + 1]] =
+      [draftMovements[index + 1], draftMovements[index]];
+    
+    focusIndex = index + 1;
+  }
+  
+  renderMovementFields();
+  
+  document.querySelector<HTMLInputElement>(
+    `[name="title-${focusIndex}"]`
+  )?.focus();
+});
+
 function openEditor(newClass = false) {
-  if(session.startedAt!==null)session=toggle(session,Date.now());renderClock();
-  $<HTMLInputElement>('name-input').value=newClass ? '' : plan.className;$<HTMLInputElement>('period-input').value=String(plan.periodMinutes);
-  $('movement-fields').innerHTML=plan.movements.map((m,i)=>`<fieldset><legend><span style="color:${m.color}">●</span> Movement ${i+1}</legend><div class="form-top"><label>Movement name<input name="title-${i}" value="${escape(m.title)}" maxlength="100" required></label><label>Minutes<input name="minutes-${i}" type="number" min="1" max="240" step="1" value="${m.minutes}" required></label></div><label>Student instruction<input name="description-${i}" value="${escape(m.description)}" maxlength="300"></label></fieldset>`).join('');
-  $('form-error').textContent='';draftAllocation();editor.showModal();
-};
+  if (session.startedAt !== null) {
+    session = toggle(session, Date.now());
+  }
+  
+  renderClock();
+  
+  draftMovements = structuredClone(plan.movements);
+  
+  $<HTMLInputElement>('name-input').value =
+    newClass ? '' : plan.className;
+  
+  $<HTMLInputElement>('period-input').value =
+    String(plan.periodMinutes);
+  
+  $('form-error').textContent = '';
+  renderMovementFields();
+  editor.showModal();
+}
 $('edit').onclick=()=>openEditor();
 $('new-class').onclick=()=>openEditor(true);
 $('class-preset').onchange=()=>{
@@ -107,18 +276,78 @@ $('delete-class').onclick=()=>{
   presets = presets.filter(p => presetKey(p.className) !== presetKey(plan.className));
   plan = structuredClone(presets[0]); session = newSession(); savePresets(); renderPlan();
 };
-function draftAllocation(){const form=$<HTMLFormElement>('plan-form');const sum=plan.movements.reduce((a,_,i)=>a+Number((form.elements.namedItem(`minutes-${i}`) as HTMLInputElement).value),0);$('draft-allocation').textContent=allocation(Number($<HTMLInputElement>('period-input').value),sum);}
-$('plan-form').addEventListener('input',draftAllocation);
-$('close-editor').onclick=$('cancel-editor').onclick=()=>editor.close();
-$('plan-form').onsubmit=(e)=>{e.preventDefault();const data=new FormData($<HTMLFormElement>('plan-form'));try{
-  const updated=validatePlan({...plan,className:String(data.get('className')).trim(),periodMinutes:Number(data.get('period')),movements:plan.movements.map((m,i)=>({...m,title:String(data.get(`title-${i}`)).trim(),description:String(data.get(`description-${i}`)).trim(),minutes:Number(data.get(`minutes-${i}`))}))});
-  const existing = presets.findIndex(p => presetKey(p.className) === presetKey(updated.className));
-  if (existing >= 0 && presetKey(updated.className) !== presetKey(plan.className) && !window.confirm(`Replace the saved rhythm for ${presets[existing].className}?`)) return;
-  plan = updated;
-  if (existing >= 0) presets[existing] = structuredClone(plan); else presets.push(structuredClone(plan));
-  savePresets();
-  session=newSession();renderPlan();editor.close();
-}catch{$('form-error').textContent='Use a class name, movement names, and whole minutes from 1 to 240.';}};
+function draftAllocation() {
+  const data = new FormData($<HTMLFormElement>('plan-form'));
+  
+  const total = draftMovements.reduce(
+    (sum, _, index) =>
+      sum + Number(data.get(`minutes-${index}`) || 0),
+    0
+  );
+  
+  $('draft-allocation').textContent = allocation(
+    Number($<HTMLInputElement>('period-input').value),
+    total
+  );
+}
+
+$('plan-form').addEventListener('input', draftAllocation);
+
+$('close-editor').onclick =
+  $('cancel-editor').onclick = () => editor.close();
+  
+$('plan-form').onsubmit = event => {
+  event.preventDefault();
+  
+  const data = new FormData($<HTMLFormElement>('plan-form'));
+  
+  try {
+    captureDraft();
+    
+    const updated = validatePlan({
+      ...plan,
+      className: String(data.get('className')).trim(),
+      periodMinutes: Number(data.get('period')),
+      movements: draftMovements.map(movement => ({
+        ...movement,
+        title: movement.title.trim(),
+        description: movement.description.trim()
+      }))
+    });
+    
+    const existing = presets.findIndex(
+      preset =>
+        presetKey(preset.className) === presetKey(updated.className)
+    );
+    
+    if (
+      existing >= 0 &&
+      presetKey(updated.className) !== presetKey(plan.className) &&
+      !window.confirm(
+        `Replace the saved rhythm for ${presets[existing].className}?`
+      )
+    ) {
+      return;
+    }
+    
+    plan = updated;
+    
+    if (existing >= 0) {
+      presets[existing] = structuredClone(plan);
+    } else {
+      presets.push(structuredClone(plan));
+    }
+    
+    savePresets();
+    session = newSession();
+    renderPlan();
+    editor.close();
+  } catch {
+    $('form-error').textContent =
+      'Use a class name, a name for every phase, and whole minutes ' +
+      'from 1 to 240. Keep between 1 and 20 phases.';
+  }
+};
 $('reset').onclick=()=>{$<HTMLDialogElement>('reset-dialog').showModal();};
 $('cancel-reset').onclick=()=>$<HTMLDialogElement>('reset-dialog').close();
 $('confirm-reset').onclick=()=>{session=newSession();renderClock();$<HTMLDialogElement>('reset-dialog').close();};

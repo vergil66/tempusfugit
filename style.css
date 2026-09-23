@@ -20,3 +20,16 @@
 .preset-bar select:focus-visible{outline:3px solid #32617f;outline-offset:3px}
 .preset-bar p{font-size:11px;line-height:1.5;color:#52614c;flex:1;min-width:140px;margin:0}
 @media(max-width:500px){.preset-bar{padding:14px;gap:10px}.preset-bar label{max-width:none;flex-basis:100%}.preset-bar button{font-size:11px;padding:10px}.preset-bar p{flex-basis:100%}}
+
+/* Add, remove, and reorder phases in the class editor. */
+.phase-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.phase-actions button {
+  padding: 8px 12px;
+  font-size: 12px;
+}
