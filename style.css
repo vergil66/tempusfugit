@@ -33,3 +33,8 @@
   padding: 8px 12px;
   font-size: 12px;
 }
+
+/* Product credit and release version. */
+footer { flex-wrap: wrap; }
+.footer-brand { font-weight: 600; letter-spacing: .04em; }
+.footer-version { font-weight: 400; letter-spacing: 0; }
