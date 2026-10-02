@@ -38,3 +38,19 @@
 footer { flex-wrap: wrap; }
 .footer-brand { font-weight: 600; letter-spacing: .04em; }
 .footer-version { font-weight: 400; letter-spacing: 0; }
+
+/* Local room level: independent of the current movement's color and timing. */
+.room-level{--room-color:#64715e;border-top:1px solid #d8ddcf;margin-top:24px;padding-top:24px}
+.room-level[data-level="quiet"]{--room-color:#32617f}
+.room-level[data-level="good"]{--room-color:#34634c}
+.room-level[data-level="loud"]{--room-color:#995344}
+.room-reading{display:block;color:var(--room-color);font-size:clamp(32px,3.5vw,56px);line-height:1.1;letter-spacing:.03em;margin:12px 0}
+.room-meter{height:18px;border-radius:6px;overflow:hidden;background:#263d3314;position:relative}
+.room-meter::after{content:"";position:absolute;inset:0;background:linear-gradient(to right,transparent 32.5%,#fafbf5 32.5%,#fafbf5 33.5%,transparent 33.5%,transparent 65.5%,#fafbf5 65.5%,#fafbf5 66.5%,transparent 66.5%)}
+.room-fill{height:100%;width:0;background:var(--room-color)}
+.room-zones{display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.06em;margin:8px 0 18px}
+.room-toggle{width:100%}
+.room-level input[type="range"]{padding:0;accent-color:#34634c;min-height:28px}
+.room-level p{font-size:11px;line-height:1.5;color:#52614c;margin:10px 0 0}
+.room-message{min-height:2.8em}
+.student .room-reading{font-size:clamp(36px,4vw,64px)}
