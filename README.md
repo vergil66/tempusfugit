@@ -23,7 +23,7 @@ Open the local address printed by Vite (normally http://127.0.0.1:5173). Keep th
 - **Finish class** on the final movement freezes both clocks. **Reset** returns to the first movement after confirmation.
 - **Student View** hides editing and the detailed agenda, enlarges the current movement and clocks, and retains Start/Pause and Next for the teacher. Use **Full screen** for projection. Teacher View returns to editing.
 - Opening the editor pauses a running class. Cancel leaves it paused; saving starts a fresh class.
-- Settings are saved only in this browser. Refreshing starts a fresh, paused session; live timing is intentionally not restored. Separate tabs and devices are independent.
+- Settings are saved only in this browser. Refreshing restores this tab’s class, current phase, clocks, and view for up to 12 hours after its last save. Running clocks include reload time; paused clocks stay paused. New tabs start fresh; closing and reopening a tab depends on browser session restoration. Recovery is local to this browser and address. Separate tabs and devices are independent.
 - Timing uses elapsed timestamps rather than counting interval ticks, so a background tab catches up when rendered again. Time asleep counts as elapsed time; manually changing the device clock can affect timing. Keep the computer awake for projection.
 
 ## Room Level v0.1
@@ -89,3 +89,7 @@ There is no API, authentication, cross-device sync, lesson write-back, or implem
 ### Repeat browser verification
 
 With Google Chrome installed and `npm run dev` running on port 5173, run `node browser.mjs`. It checks real UI timing, overtime, editing, saved settings, view switching, reset, completion, and horizontal overflow at 375, 768, and 1440 pixels. Screenshots are written to `test-results/`. All checks passed during beta verification.
+
+## Refresh recovery (v0.3.0)
+
+Reset, saved edits, and class switches replace the recovery snapshot. Invalid or expired snapshots start fresh. Unsaved editor changes are discarded on reload. The Room Level microphone stays off after reload; enable it again explicitly. If chime is on, click **Continue & enable chime** after recovery to unlock browser audio. An already-expired phase does not replay its chime.
