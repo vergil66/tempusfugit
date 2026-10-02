@@ -26,6 +26,30 @@ Open the local address printed by Vite (normally http://127.0.0.1:5173). Keep th
 - Settings are saved only in this browser. Refreshing starts a fresh, paused session; live timing is intentionally not restored. Separate tabs and devices are independent.
 - Timing uses elapsed timestamps rather than counting interval ticks, so a background tab catches up when rendered again. Time asleep counts as elapsed time; manually changing the device clock can affect timing. Keep the computer awake for projection.
 
+## Room Level v0.1
+
+Room Level shows a smoothed, relative microphone level as **QUIET / GOOD / LOUD**. The panel appears below Today’s rhythm in Teacher View and stays visible in Student View for projection. It works independently of the timers and movements.
+
+1. Run the app locally as above and click **Enable microphone**. Allow microphone access when prompted by your browser or macOS.
+2. Use the **Sensitivity** slider to suit the room and the MacBook’s position. Higher sensitivity raises the reading for the same sound.
+3. Choose **Student View** and **Full screen** for projection.
+4. Click **Disable microphone** to stop listening. Leaving the page also releases the microphone. Refreshing leaves it off and resets sensitivity to its default.
+
+The display measures relative audio amplitude, **not calibrated dB SPL**. QUIET / GOOD / LOUD are fixed relative bands; they do not judge what is appropriate for a particular movement. Readings depend on microphone hardware, placement, and sensitivity.
+
+Audio is processed entirely in this browser using `getUserMedia` and the Web Audio API. It is not recorded, saved, uploaded, or played through the speakers. Room Level makes no external API calls and uses no database. There is no logging, history, automatic warning, Threshold/Crossing integration, or movement-specific sound expectation.
+
+Microphone access requires localhost (including the local address printed by Vite) or HTTPS. If access is denied, check browser and macOS microphone permissions and try again. If capture pauses or the microphone disconnects, disable and re-enable it. The existing optional timer chime may register on the microphone like any other room sound.
+
+### Quick hands-on check
+
+- Enable the microphone, speak, then pause; confirm the meter responds smoothly.
+- Adjust sensitivity and check readability in Student View on the projector.
+- Use Start/Pause and Next movement while listening; timer behavior should remain unchanged.
+- Disable the microphone and confirm the browser’s microphone indicator clears.
+
+The existing automated tests cover timing; microphone response and classroom sensitivity need hands-on testing on each computer.
+
 ## Test and production build
 
 ```sh
@@ -58,6 +82,7 @@ There is no API, authentication, cross-device sync, lesson write-back, or implem
 
 - `model.ts`: plan validation and independent clock state transitions.
 - `main.ts`: UI, local settings, teacher/student views.
+- `room-level.ts`: local microphone capture, relative level calculation, smoothing, sensitivity, and microphone cleanup.
 - `style.css`: responsive and projection styling; system fonts, no remote assets.
 - `model.test.ts`: deterministic timer tests.
 
